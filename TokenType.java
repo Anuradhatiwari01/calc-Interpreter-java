@@ -1,17 +1,22 @@
 package calc;
 
 public enum TokenType {    
-    NUMBER,       
-    IDENTIFIER,   
-    PLUS,         
-    MINUS,        
-    STAR,         
-    SLASH,        
-    CARET,        
-    PERCENT,     
-    EQUALS,       
-    LPAREN,      
-    RPAREN,      
+    ASSIGN,
+    PRINT,
+    IF,
+    LOOP,
+    ARROW,
+    NUMBER,
+    STRING,
+    IDENTIFIER,
+    PLUS,
+    MINUS,
+    STAR,
+    SLASH,
+    GREATER,
+    LESS,
+    EQUAL_EQUAL,
+    NEWLINE,
 
-    EOF    
+    EOF
 }
