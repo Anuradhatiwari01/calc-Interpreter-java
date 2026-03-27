@@ -76,4 +76,84 @@ public class Parser {
                 );
         }
     }
+
+    private Instruction parseAssign() {
+        Token nameToken = advance(); // consume variable name (IDENTIFIER)
+
+        // ensure assignment operator is present
+        expect(TokenType.ASSIGN,
+                "Expected ':=' after variable name '" + nameToken.getValue() + "'");
+
+        Expression expr = parseExpression(); // parse right-hand expression
+
+        return new AssignInstruction(nameToken.getValue(), expr);
+    }
+
+    private Instruction parsePrint() {
+        advance(); // consume PRINT token (>>)
+
+        Expression expr = parseExpression(); // expression to print
+
+        return new PrintInstruction(expr);
+    }
+
+    private Instruction parseIf() {
+        advance(); // consume IF token (?)
+
+        Expression condition = parseComparison(); // parse condition
+
+        expect(TokenType.ARROW, "Expected '=>' after condition in '?'");
+
+        // skip optional newlines before block starts
+        while (check(TokenType.NEWLINE)) advance();
+
+        List<Instruction> body = parseBlock(); // parse body instructions
+
+        return new IfInstruction(condition, body);
+    }
+
+    private Instruction parseLoop() {
+        advance(); // consume LOOP token (@)
+
+        // get loop count
+        Token countToken = expect(TokenType.NUMBER,
+                "Expected a number after '@'");
+        int count = (int) Double.parseDouble(countToken.getValue());
+
+        expect(TokenType.ARROW, "Expected '=>' after loop count");
+
+        // skip optional newlines before block
+        while (check(TokenType.NEWLINE)) advance();
+
+        List<Instruction> body = parseBlock(); // loop body
+
+        return new RepeatInstruction(count, body);
+    }
+
+    private List<Instruction> parseBlock() {
+        List<Instruction> body = new ArrayList<>();
+
+        // keep parsing instructions until block ends
+        while (!check(TokenType.EOF) && isStartOfInstruction()) {
+            body.add(parseInstruction());
+
+            // skip extra newlines between instructions
+            while (check(TokenType.NEWLINE)) advance();
+        }
+
+        return body;
+    }
+
+    private boolean isStartOfInstruction() {
+        // checks if current token can begin a valid instruction
+        switch (peek().getType()) {
+            case IDENTIFIER: // assignment
+            case PRINT:      // >>
+            case IF:         // ?
+            case LOOP:       // @
+                return true;
+            default:
+                return false;
+        }
+    }
 }
