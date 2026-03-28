@@ -4,6 +4,6 @@ import main.java.calc.environment.Environment;
 import java.util.Objects;
 
 public interface Expression {
-    Objects evaluate(Environment env);
+    Object evaluate(Environment env);
 
 }

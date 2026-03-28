@@ -1,4 +1,20 @@
 package main.java.calc.ast;
 
-public class StringNode {
+import main.java.calc.environment.Environment;
+
+public class StringNode implements Expression{
+
+    private final String value;
+
+    public StringNode(String value) {
+        this.value = value;
+    }
+    @Override
+    public Object evaluate(Environment env) {
+        return value;
+    }
+    @Override
+    public String toString() {
+        return "StringNode(\"" + value + "\")";
+    }
 }
