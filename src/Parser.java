@@ -156,4 +156,71 @@ public class Parser {
                 return false;
         }
     }
+
+    // Expression precedence chain: parseExpression → parseTerm → parsePrimary
+// Lower in chain = higher precedence (parsed first)
+
+    private Expression parseComparison() {
+        Expression left = parseExpression();
+
+        if (check(TokenType.GREATER) || check(TokenType.LESS) || check(TokenType.EQUAL_EQUAL)) {
+            String op = advance().getValue();
+            Expression right = parseExpression();
+            return new BinaryOpNode(left, op, right);
+        }
+
+        return left;
+    }
+
+    // Handles + and - (lowest precedence)
+    private Expression parseExpression() {
+        Expression left = parseTerm();
+
+        while (check(TokenType.PLUS) || check(TokenType.MINUS)) {
+            String op = advance().getValue();
+            Expression right = parseTerm();
+            left = new BinaryOpNode(left, op, right);
+        }
+
+        return left;
+    }
+
+    // Handles * and / (higher precedence than + and -)
+    private Expression parseTerm() {
+        Expression left = parsePrimary();
+
+        while (check(TokenType.STAR) || check(TokenType.SLASH)) {
+            String op = advance().getValue();
+            Expression right = parsePrimary();
+            left = new BinaryOpNode(left, op, right);
+        }
+
+        return left;
+    }
+
+    // Base case — returns a single leaf node (number, string, or variable)
+    private Expression parsePrimary() {
+        Token t = peek();
+
+        switch (t.getType()) {
+            case NUMBER:
+                advance();
+                return new NumberNode(Double.parseDouble(t.getValue()));
+
+            case STRING:
+                advance();
+                return new StringNode(t.getValue());
+
+            case IDENTIFIER:
+                advance();
+                return new VariableNode(t.getValue());
+
+            default:
+                throw new RuntimeException(
+                        "PARSER error on line " + t.getLine()
+                                + ": Expected a value but got '"
+                                + t.getValue() + "' (" + t.getType() + ")"
+                );
+        }
+    }
 }
