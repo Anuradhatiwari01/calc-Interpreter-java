@@ -1,5 +1,5 @@
-package main.java.calc.ast;
-import main.java.calc.environment.Environment;
+package ast;
+import environment.Environment;
 
 public class NumberNode implements Expression {
     private final double value;

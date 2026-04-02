@@ -1,7 +1,7 @@
-package main.java.calc.ast;
-import main.java.calc.environment.Environment;
+package ast;
+import environment.Environment;
 
-public class BinaryOpNode implements Expression{
+public class BinaryOpNode implements Expression {
 
     private final Expression left;
     private final String operator;

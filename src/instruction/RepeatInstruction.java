@@ -1,6 +1,6 @@
-package main.java.calc.instruction;
+package instruction;
 
-import main.java.calc.environment.Environment;
+import environment.Environment;
 
 import java.util.Collections;
 import java.util.List;

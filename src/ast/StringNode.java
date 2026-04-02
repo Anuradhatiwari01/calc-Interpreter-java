@@ -1,8 +1,8 @@
-package main.java.calc.ast;
+package ast;
 
-import main.java.calc.environment.Environment;
+import environment.Environment;
 
-public class StringNode implements Expression{
+public class StringNode implements Expression {
 
     private final String value;
 

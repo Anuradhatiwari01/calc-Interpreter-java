@@ -1,13 +1,13 @@
-package main.java.calc.instruction;
+package instruction;
 
-import main.java.calc.environment.Environment;
-import main.java.calc.ast.Expression;
+import environment.Environment;
+import ast.Expression;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-public final class IfInstruction implements  Instruction{
+public final class IfInstruction implements Instruction {
 
     private final Expression condition;
     private final List<Instruction> body;

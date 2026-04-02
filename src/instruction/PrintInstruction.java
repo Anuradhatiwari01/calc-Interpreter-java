@@ -1,7 +1,7 @@
-package main.java.calc.instruction;
+package instruction;
 
-import main.java.calc.environment.Environment;
-import main.java.calc.ast.Expression;
+import environment.Environment;
+import ast.Expression;
 
 public final class PrintInstruction implements Instruction {
 
