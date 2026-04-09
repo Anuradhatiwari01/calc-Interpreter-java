@@ -1,4 +1,4 @@
-package calc;
+package tokenizer;
 
 public enum TokenType {    
     ASSIGN,
