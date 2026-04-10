@@ -1,9 +1,30 @@
-package main.java.calc.interpreter.parser;
+package parser;
+
+import ast.*;
+import instruction.*;
+import tokenizer.Token;
+import tokenizer.TokenType;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-// Step 2 of pipeline: converts List<Token> into List<Instruction>
+/**
+ * Parser — Step 2 of pipeline.
+ *
+ * Converts List<Token> into List<Instruction>.
+ *
+ * DESIGN PRINCIPLE: SRP
+ *   Only responsible for syntactic analysis — turning a flat
+ *   token stream into a structured instruction list.
+ *
+ * DESIGN PRINCIPLE: Dependency Inversion
+ *   Returns List<Instruction> (interface) — the interpreter
+ *   doesn't need to know which concrete instruction types exist.
+ *
+ * Expression precedence (lowest → highest):
+ *   parseComparison → parseExpression → parseTerm → parsePrimary
+ */
 public class Parser {
 
     private final List<Token> tokens;
@@ -14,33 +35,29 @@ public class Parser {
         this.current = 0;
     }
 
-    // Returns unmodifiable instruction list
+    /** Returns an unmodifiable instruction list. */
     public List<Instruction> parse() {
         List<Instruction> instructions = new ArrayList<>();
-
         skipNewlines();
-
         while (!check(TokenType.EOF)) {
             instructions.add(parseInstruction());
             while (check(TokenType.NEWLINE)) advance();
         }
-
         return Collections.unmodifiableList(instructions);
     }
 
-    private Token peek()                  { return tokens.get(current);   }
-    private Token advance()               { return tokens.get(current++); }
-    private boolean check(TokenType type) { return peek().isType(type);   }
+    // ─── Token navigation helpers ─────────────────────────────────────────────
 
+    private Token   peek()                  { return tokens.get(current);   }
+    private Token   advance()               { return tokens.get(current++); }
+    private boolean check(TokenType type)   { return peek().isType(type);   }
 
-    // Consumes required token or throws with clear error
     private Token expect(TokenType type, String message) {
         if (check(type)) return advance();
         Token bad = peek();
-        throw new CalcException(
-                CalcException.Phase.PARSER,
-                bad.getLine(),
-                message + " — got '" + bad.getValue() + "' (" + bad.getType() + ")"
+        throw new RuntimeException(
+            "PARSER error on line " + bad.getLine() + ": "
+            + message + " — got '" + bad.getValue() + "' (" + bad.getType() + ")"
         );
     }
 
@@ -48,40 +65,38 @@ public class Parser {
         while (check(TokenType.NEWLINE)) advance();
     }
 
-    // Dispatches to correct instruction parser based on current token
+    // ─── Instruction parsers ──────────────────────────────────────────────────
+
     private Instruction parseInstruction() {
         Token t = peek();
-
         switch (t.getType()) {
             case IDENTIFIER: return parseAssign();
             case PRINT:      return parsePrint();
             case IF:         return parseIf();
             case LOOP:       return parseLoop();
             default:
-                throw new CalcException(
-                        CalcException.Phase.PARSER,
-                        t.getLine(),
-                        "Unexpected token '" + t.getValue() + "'"
-                                + " — expected a variable name, >>, ?, or @"
+                throw new RuntimeException(
+                    "PARSER error on line " + t.getLine()
+                    + ": Unexpected token '" + t.getValue()
+                    + "' — expected a variable name, >>, ?, or @"
                 );
         }
     }
 
-    // x := <expression>
+    /** x := &lt;expression&gt; */
     private Instruction parseAssign() {
         Token nameToken = advance();
-        expect(TokenType.ASSIGN,
-                "Expected ':=' after variable name '" + nameToken.getValue() + "'");
+        expect(TokenType.ASSIGN, "Expected ':=' after variable name '" + nameToken.getValue() + "'");
         return new AssignInstruction(nameToken.getValue(), parseExpression());
     }
 
-    // >> <expression>
+    /** &gt;&gt; &lt;expression&gt; */
     private Instruction parsePrint() {
         advance();
         return new PrintInstruction(parseExpression());
     }
 
-    // ? <condition> => <body>
+    /** ? &lt;condition&gt; =&gt; &lt;body&gt; */
     private Instruction parseIf() {
         advance();
         Expression condition = parseComparison();
@@ -90,7 +105,7 @@ public class Parser {
         return new IfInstruction(condition, parseBlock());
     }
 
-    // @ <number> => <body>
+    /** @ &lt;number&gt; =&gt; &lt;body&gt; */
     private Instruction parseLoop() {
         advance();
         Token countToken = expect(TokenType.NUMBER, "Expected a number after '@'");
@@ -100,7 +115,6 @@ public class Parser {
         return new RepeatInstruction(count, parseBlock());
     }
 
-    // Reads instructions until EOF or non-instruction token (end of block)
     private List<Instruction> parseBlock() {
         List<Instruction> body = new ArrayList<>();
         while (!check(TokenType.EOF) && isStartOfInstruction()) {
@@ -117,7 +131,7 @@ public class Parser {
         }
     }
 
-    // Expression precedence chain: parseComparison → parseExpression → parseTerm → parsePrimary
+    // ─── Expression parsers (precedence chain) ────────────────────────────────
 
     private Expression parseComparison() {
         Expression left = parseExpression();
@@ -128,7 +142,7 @@ public class Parser {
         return left;
     }
 
-    // Handles + and - (lowest precedence)
+    /** Handles + and - (lowest precedence among arithmetic). */
     private Expression parseExpression() {
         Expression left = parseTerm();
         while (check(TokenType.PLUS) || check(TokenType.MINUS)) {
@@ -138,7 +152,7 @@ public class Parser {
         return left;
     }
 
-    // Handles * and / (higher precedence than + and -)
+    /** Handles * and / (higher precedence than + and -). */
     private Expression parseTerm() {
         Expression left = parsePrimary();
         while (check(TokenType.STAR) || check(TokenType.SLASH)) {
@@ -148,7 +162,7 @@ public class Parser {
         return left;
     }
 
-    // Base case — returns a single leaf node
+    /** Base case — returns a single leaf node. */
     private Expression parsePrimary() {
         Token t = peek();
         switch (t.getType()) {
@@ -162,11 +176,10 @@ public class Parser {
                 advance();
                 return new VariableNode(t.getValue());
             default:
-                throw new CalcException(
-                        CalcException.Phase.PARSER,
-                        t.getLine(),
-                        "Expected a value (number, string, or variable name)"
-                                + " but got '" + t.getValue() + "' (" + t.getType() + ")"
+                throw new RuntimeException(
+                    "PARSER error on line " + t.getLine()
+                    + ": Expected a value (number, string, or variable name)"
+                    + " but got '" + t.getValue() + "' (" + t.getType() + ")"
                 );
         }
     }
