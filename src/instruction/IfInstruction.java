@@ -19,7 +19,7 @@ public final class IfInstruction implements Instruction {
 
     @Override
     public void execute(Environment env){
-        Objects result = condition.evaluate(env);
+        Object result = condition.evaluate(env);
         if (Boolean.TRUE.equals(result)) {
             for (Instruction instruction : body) {
                 instruction.execute(env);
