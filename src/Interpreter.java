@@ -1,4 +1,8 @@
 import java.util.List;
+import environment.*;
+import instruction.*;
+import tokenizer.*;
+import parser.*;
 
 /**
  * Runs source code through the three-step pipeline:
