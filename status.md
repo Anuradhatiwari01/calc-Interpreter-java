@@ -130,6 +130,7 @@ A Programiz-style site. Every run goes to the real Java interpreter through `POS
 
 ## 6b. Deployment (Docker + Render)
 
+- **Live URL:** https://calc-interpreter-975x.onrender.com
 - **Platform:** Render free web service, deploying the `Dockerfile` from the `ui-development` branch. GitHub Pages, Netlify and Vercel won't work: they only serve static files, and this site needs a Java process.
 - **Container:** the build stage runs the tests (`50 passed`). The runtime image is Java 21 JRE, runs as user `calc`, and uses `-XX:MaxRAMPercentage=60`.
 - **Checked locally on 2026-10-02 with free-tier limits (`--memory=512m --cpus=0.1`):**
@@ -164,4 +165,4 @@ What was done:
 - **Core interpreter:** complete. All 50 tests pass on Java 21, compiled with `--release 11`.
 - **Git remote:** fixed. `origin` is the only remote.
 - **Interactive UI:** first version committed and pushed on `ui-development` (`94203e4`).
-- **Deployment:** the Docker setup is ready and tested locally. Next: create the Render web service (README → Deployment).
+- **Deployment:** live at **https://calc-interpreter-975x.onrender.com**. Render deploys the `ui-development` branch (commit `81e74a1`) and redeploys on every push. On 2026-10-02, every page, the API, the error cases, the loop limit and the headless-Chrome check all passed on the live site.

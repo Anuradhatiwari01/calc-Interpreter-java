@@ -5,6 +5,9 @@
 ![Java](https://img.shields.io/badge/Java-11%2B-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
 ![Concepts](https://img.shields.io/badge/Concepts-Lexer%20%7C%20AST%20%7C%20Interpreter-6366F1?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-Complete-22c55e?style=flat-square)
+![Live](https://img.shields.io/badge/Live-calc--interpreter--975x.onrender.com-0556f3?style=flat-square)
+
+**▶ Try it live: [calc-interpreter-975x.onrender.com](https://calc-interpreter-975x.onrender.com)**. Interactive lessons, a playground, and a look at the tokens and syntax tree of your code. The free server sleeps when idle, so the first visit may take up to a minute to load.
 
 ---
 
@@ -164,7 +167,7 @@ The test runner doesn't need any libraries. It checks every sample program, the 
 
 ## Interactive Learning UI
 
-CALC includes a browser-based learning site inspired by [Programiz](https://www.programiz.com/). Every program on the site runs on this Java interpreter. The site never reimplements CALC in JavaScript.
+CALC includes a browser-based learning site inspired by [Programiz](https://www.programiz.com/). **Live:** https://calc-interpreter-975x.onrender.com Every program on the site runs on this Java interpreter. The site never reimplements CALC in JavaScript.
 
 **Start it:**
 ```powershell
