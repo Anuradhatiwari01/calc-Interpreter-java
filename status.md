@@ -105,17 +105,13 @@ README.md has the PowerShell versions of these commands.
 
 ## 7. Git setup (fixed on 2026-10-02)
 
-| Remote | URL | Purpose |
-|---|---|---|
-| `origin` | `https://github.com/Anuradhatiwari01/calc-Interpreter-java.git` | Personal repo. `main` and `Tokeniser` track this remote, so a plain `git push` / `git pull` uses it |
-| `classroom` | `https://github.com/Sitare-University/class-project-calc-19-team.git` | GitHub Classroom repo, still reachable with `git push classroom main` |
+There is one remote, `origin` → `https://github.com/Anuradhatiwari01/calc-Interpreter-java.git` (the personal repo). `main` and `Tokeniser` both track it. Use it for every pull and push.
 
 What was done:
-- Renamed the old `origin` (the classroom repo) to `classroom`, then added the personal repo as `origin`.
+- Pointed `origin` back at the personal repo. It had been pointing at the Sitare-University classroom repo.
 - Removed a duplicate `[branch "main"]` section in `.git/config`. It had pointed `main` at `refs/heads/evaluator`.
-- Pushed local `main` to the personal repo as a fast-forward (`b6a9116..68bc2b0`, 11 commits).
-
-Still open: `classroom/main` has one commit that isn't in local `main`. It is `fb1daf1`, which uploads `samples/CalcInterpreter_VivaPractice.pdf` (about 4 MB). To get it, run `git pull classroom main`.
+- Pushed local `main` to the personal repo.
+- Removed the GitHub Classroom remote (`Sitare-University/class-project-calc-19-team`) from the local project entirely. The classroom repo still exists on GitHub. Only the local link to it is gone.
 
 ## 8. Current status
 
