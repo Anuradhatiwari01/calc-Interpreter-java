@@ -1,8 +1,8 @@
 # CALC Interpreter — Mini Scripting Engine
 
-> A fully functional interpreter for **CALC**, a custom math-notation-based programming language — built entirely from scratch in pure Java, with no external parsing libraries.
+> A complete interpreter for **CALC**, a small programming language written in math-style notation. It's built from scratch in plain Java, without any parsing libraries.
 
-![Java](https://img.shields.io/badge/Java-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
+![Java](https://img.shields.io/badge/Java-11%2B-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
 ![Concepts](https://img.shields.io/badge/Concepts-Lexer%20%7C%20AST%20%7C%20Interpreter-6366F1?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-Complete-22c55e?style=flat-square)
 
@@ -16,109 +16,168 @@ Most programmers use languages — I wanted to understand what happens *before* 
 
 ## What is CALC?
 
-CALC (Concise Algorithmic Language for Computation) uses symbolic, math-style notation instead of verbose English keywords. It supports:
+CALC (Concise Algorithmic Language for Computation) uses symbols in place of English keywords:
 
-| Feature | CALC Syntax | Equivalent in Python |
+| Feature | CALC syntax | Python equivalent |
 |---|---|---|
-| Variable assignment | `$x := 10` | `x = 10` |
+| Assign a variable | `x := 10` | `x = 10` |
 | Arithmetic (with precedence) | `result := x + y * 2` | `result = x + y * 2` |
-| Print output | `>> result` | `print(result)` |
-| String output | `>> "Hello"` | `print("Hello")` |
-| Conditional | `? score > 50 => >> "Pass"` | `if score > 50: print("Pass")` |
-| Loop | `@ 4 =>` | `for _ in range(4):` |
+| Print a value | `>> result` | `print(result)` |
+| Print a string | `>> "Hello"` | `print("Hello")` |
+| If, one line | `? score > 50 => >> "Pass"` | `if score > 50: print("Pass")` |
+| If, block | `? score > 50 =>` … `end` | `if score > 50:` + indented body |
+| Loop, one line | `@ 3 => >> "hi"` | `for _ in range(3): print("hi")` |
+| Loop, block | `@ 4 =>` … `end` | `for _ in range(4):` + indented body |
+| Comment | `# note` | `# note` |
+
+**Language rules:**
+- Operators: `+ - * /` for arithmetic, and `> < ==` for comparisons. Comparisons can only be used as a `?` condition.
+- All numbers are decimals internally. Whole numbers print without the `.0`, so `16.0` prints as `16`.
+- A string sits between double quotes and must close on the same line.
+- A loop count must be a whole-number literal, such as `@ 5 =>`.
+- Put each statement on its own line.
+- If `=>` is followed by a statement on the same line, the body is just that one statement. If `=>` ends the line, the body continues until a matching `end`. Blocks can be nested.
+- `end` is a reserved word, so you can't use it as a variable name.
 
 ---
 
 ## Demo
 
-**Input (`program.calc`):**
+**Input (`samples/program5.calc`):**
 ```
-$x := 5
-$y := 3
-result := x + y * 2
->> result
+# Nested blocks, the one-line form, and code after a block
+total := 0
+n := 1
+@ 5 =>
+    total := total + n
+    ? n == 3 => >> "halfway there"
+    n := n + 1
+end
+>> total
+
+? total > 10 =>
+    >> "big total"
+    @ 2 => >> "!"
+end
+? total < 10 => >> "small total"
 >> "Done"
 ```
 
 **Output:**
 ```
-11
+halfway there
+15
+big total
+!
+!
 Done
 ```
 
-Operator precedence is handled natively — `y * 2` evaluates before `x +` because the multiplication node sits deeper in the AST than the addition node.
+Indentation is optional, but it makes blocks easier to read.
+
+---
+
+## Error Messages
+
+Every error shows the stage where it was found and the line number:
+
+```
+[TOKENIZER ERROR] Line 1: Unexpected character '$'
+[PARSER ERROR] Line 2: Missing 'end' for the '?' block started on line 2
+[EVALUATOR ERROR] Line 3: Variable 'c' is not defined
+```
+
+| Stage | Catches |
+|---|---|
+| `TOKENIZER` | Unknown characters, unterminated strings, malformed numbers like `1.2.3`, a lone `:` or `=` |
+| `PARSER` | A missing `:=`, `=>` or `end`, a stray `end`, two statements on one line, a missing value |
+| `EVALUATOR` | Undefined variables, arithmetic on strings, a `?` condition that isn't a comparison |
 
 ---
 
 ## Core Architecture — Three-Stage Pipeline
 
-The interpreter processes source code through a strict, sequential pipeline:
-
 ```
 Source Code (.calc)
       │
       ▼
- ┌──────────┐
+ ┌───────────┐
  │ Tokenizer │  → reads char by char → produces flat list of Token objects
+ └───────────┘
+      │
+      ▼
+ ┌──────────┐
+ │  Parser  │  → consumes tokens → builds Instructions + Expression trees (AST)
  └──────────┘
       │
       ▼
- ┌─────────┐
- │  Parser  │  → consumes tokens → builds Abstract Syntax Tree (AST)
- └─────────┘
-      │
-      ▼
- ┌───────────┐
- │ Evaluator │  → traverses AST bottom-up → executes with Environment map
- └───────────┘
+ ┌──────────┐
+ │ Execute  │  → runs each Instruction, evaluating expressions against an Environment
+ └──────────┘
       │
       ▼
    Output
 ```
 
-### 1. Tokenizer
-Reads the raw `.calc` source file character by character and groups characters into a flat list of identifiable `Token` objects — numbers, strings, operators (`:=`, `>>`), and keywords.
+### 1. Tokenizer: `src/tokenizer/`
+Reads the `.calc` source one character at a time and turns it into a flat list of `Token` objects: numbers, strings, identifiers, operators (`:=`, `>>`, `=>`, `==`), the `end` keyword, and newlines. Each token records its line number for error messages.
 
-### 2. Parser
-Consumes the token list and constructs an **Abstract Syntax Tree (AST)**. The tree structure inherently resolves operator precedence without additional passes — multiplication nodes sit deeper in the tree than addition nodes, so they evaluate first automatically.
+### 2. Parser: `src/parser/`
+A recursive-descent parser. It turns the token list into a list of `Instruction`s, and each instruction holds `Expression` trees. Each precedence level has its own method: `parseComparison → parseExpression (+ −) → parseTerm (* /) → parsePrimary`. Because of this, `*` and `/` end up deeper in the tree than `+` and `−`, and are evaluated first.
 
-### 3. Evaluator / Interpreter
-Traverses the parsed AST from the bottom up. Executes `Instruction` interfaces and evaluates `Expression` nodes while maintaining program state via an `Environment` map that tracks all active variables.
+### 3. Execution: `src/instruction/` + `src/ast/`
+`Interpreter` calls `execute()` on each `Instruction`. Each instruction evaluates its `Expression` nodes from the leaves upward. Variables live in a single `Environment` map.
 
 ---
 
 ## How to Run
 
-**Prerequisites:** Java 11 or above
+**Prerequisites:** Java 11 or above (JDK, so you have `javac`)
 
 ```bash
-# Clone the repository
-git clone https://github.com/YOUR_GITHUB_USERNAME/calc-interpreter.git
-cd calc-interpreter
-
-# Compile
-javac -d out src/**/*.java
-
-# Run with a .calc source file
-java -cp out Main programs/example.calc
+git clone https://github.com/Anuradhatiwari01/calc-Interpreter-java.git
+cd calc-Interpreter-java
 ```
 
-A sample `example.calc` file is included in the `programs/` directory to test immediately.
+**Compile and run (macOS / Linux / Git Bash):**
+```bash
+javac -d out $(find src -name "*.java")
+java -cp out Main samples/program1.calc
+```
+
+**Compile and run (Windows PowerShell):**
+```powershell
+javac -d out (Get-ChildItem -Recurse src -Filter *.java).FullName
+java -cp out Main samples/program1.calc
+```
+
+**Run the tests:**
+```bash
+javac -d out $(find src test -name "*.java")
+java -cp out InterpreterTest
+```
+In PowerShell, use `(Get-ChildItem -Recurse src,test -Filter *.java).FullName` for the file list.
+
+The test runner doesn't need any libraries. It checks every sample program, the block and one-line forms, and the exact text of each error message.
 
 ---
 
 ## Project Structure
 
 ```
-calc-interpreter/
+calc-Interpreter-java/
 ├── src/
-│   ├── Main.java           # Entry point
-│   ├── tokenizer/          # Lexer — char → Token
-│   ├── parser/             # Token → AST nodes
-│   ├── evaluator/          # AST → execution
-│   └── environment/        # Variable state management
-├── programs/
-│   └── example.calc        # Sample CALC source file
+│   ├── Main.java              # CLI entry point: reads a .calc file and reports errors
+│   ├── Interpreter.java       # Pipeline: tokenize → parse → execute
+│   ├── tokenizer/             # Token, TokenType, Tokenizer, CalcException
+│   ├── parser/                # Parser (recursive descent)
+│   ├── ast/                   # Expression nodes: Number, String, Variable, BinaryOp
+│   ├── instruction/           # Statements: Assign, Print, If, Repeat
+│   └── environment/           # Environment: variable storage
+├── test/
+│   └── InterpreterTest.java   # Test runner (no libraries needed)
+├── samples/
+│   └── program1.calc … program5.calc
 └── README.md
 ```
 
@@ -126,7 +185,8 @@ calc-interpreter/
 
 ## Key Concepts Demonstrated
 
-- **Lexical analysis** — converting raw source text into a structured token stream
-- **Recursive descent parsing** — building a tree that encodes operator precedence naturally
-- **Tree-walk interpretation** — evaluating an AST via bottom-up traversal
-- **Environment / symbol table** — managing variable scope and state at runtime
+- **Lexical analysis**: turning source text into a stream of tokens
+- **Recursive descent parsing**: building a tree whose shape encodes operator precedence
+- **Tree-walk interpretation**: running a program by evaluating its AST directly
+- **Symbol table**: keeping track of variable values while the program runs
+- **Error reporting**: every stage reports errors with a line number

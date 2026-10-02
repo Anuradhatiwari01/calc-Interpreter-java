@@ -1,0 +1,16 @@
+# Nested blocks, the one-line form, and code after a block
+total := 0
+n := 1
+@ 5 =>
+    total := total + n
+    ? n == 3 => >> "halfway there"
+    n := n + 1
+end
+>> total
+
+? total > 10 =>
+    >> "big total"
+    @ 2 => >> "!"
+end
+? total < 10 => >> "small total"
+>> "Done"

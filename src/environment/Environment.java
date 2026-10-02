@@ -16,9 +16,4 @@ public class Environment {
     public Optional<Object> get(String name) {
         return Optional.ofNullable(variables.get(name));
     }
-    public Object getOrThrow(String name) {
-        return get(name).orElseThrow(() ->
-                new RuntimeException("Variable not defined: " + name)
-        );
-    }
 }

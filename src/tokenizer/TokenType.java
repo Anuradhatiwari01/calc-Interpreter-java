@@ -6,6 +6,7 @@ public enum TokenType {
     IF,
     LOOP,
     ARROW,
+    END,
     NUMBER,
     STRING,
     IDENTIFIER,

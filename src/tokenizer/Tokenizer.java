@@ -117,25 +117,35 @@ public class Tokenizer {
             "Unexpected '=' — use ':=' to assign, '=>' for blocks, '==' for equality"
         );
     }
+    // Strings must close on the same line, so a missing '"' is reported where it happened
     private Token readString() {
         StringBuilder sb = new StringBuilder();
-        while (!isAtEnd() && peek() != '"') {
-            if (peek() == '\n') line++; 
+        while (!isAtEnd() && peek() != '"' && peek() != '\n') {
             sb.append(advance());
         }
-        if (isAtEnd()) {
+        if (isAtEnd() || peek() == '\n') {
             throw new CalcException(
                 CalcException.Phase.TOKENIZER, line,
                 "Unterminated string — missing closing '\"'"
             );
         }
-        advance(); 
+        advance();
         return makeToken(TokenType.STRING, sb.toString());
     }
     private Token readNumber(char firstDigit) {
         StringBuilder sb = new StringBuilder();
         sb.append(firstDigit);
+        boolean seenDot = false;
         while (!isAtEnd() && (Character.isDigit(peek()) || peek() == '.')) {
+            if (peek() == '.') {
+                if (seenDot) {
+                    throw new CalcException(
+                        CalcException.Phase.TOKENIZER, line,
+                        "Invalid number '" + sb + ".' — a number can have only one decimal point"
+                    );
+                }
+                seenDot = true;
+            }
             sb.append(advance());
         }
         return makeToken(TokenType.NUMBER, sb.toString());
@@ -147,6 +157,10 @@ public class Tokenizer {
         while (!isAtEnd() && (Character.isLetterOrDigit(peek()) || peek() == '_')) {
             sb.append(advance());
         }
-        return makeToken(TokenType.IDENTIFIER, sb.toString());
+        String word = sb.toString();
+        if (word.equals("end")) {
+            return makeToken(TokenType.END, word);
+        }
+        return makeToken(TokenType.IDENTIFIER, word);
     }
 }

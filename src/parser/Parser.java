@@ -2,6 +2,7 @@ package parser;
 
 import ast.*;
 import instruction.*;
+import tokenizer.CalcException;
 import tokenizer.Token;
 import tokenizer.TokenType;
 
@@ -22,6 +23,12 @@ import java.util.List;
  *   Returns List<Instruction> (interface) — the interpreter
  *   doesn't need to know which concrete instruction types exist.
  *
+ * Blocks (body of ? and @):
+ *   ? cond => >> "x"          one-line form — body is that single statement
+ *   ? cond =>                 block form — body runs until a matching 'end'
+ *       ...
+ *   end
+ *
  * Expression precedence (lowest → highest):
  *   parseComparison → parseExpression → parseTerm → parsePrimary
  */
@@ -40,8 +47,12 @@ public class Parser {
         List<Instruction> instructions = new ArrayList<>();
         skipNewlines();
         while (!check(TokenType.EOF)) {
+            if (check(TokenType.END)) {
+                throw error(peek(), "'end' without a matching '?' or '@' block");
+            }
             instructions.add(parseInstruction());
-            while (check(TokenType.NEWLINE)) advance();
+            expectEndOfStatement();
+            skipNewlines();
         }
         return Collections.unmodifiableList(instructions);
     }
@@ -54,15 +65,32 @@ public class Parser {
 
     private Token expect(TokenType type, String message) {
         if (check(type)) return advance();
-        Token bad = peek();
-        throw new RuntimeException(
-            "PARSER error on line " + bad.getLine() + ": "
-            + message + " — got '" + bad.getValue() + "' (" + bad.getType() + ")"
-        );
+        throw error(peek(), message + ", but got " + describe(peek()));
     }
 
     private void skipNewlines() {
         while (check(TokenType.NEWLINE)) advance();
+    }
+
+    /** Every statement must be followed by a line break (or the end of the file). */
+    private void expectEndOfStatement() {
+        if (check(TokenType.NEWLINE)) { advance(); return; }
+        if (check(TokenType.EOF)) return;
+        throw error(peek(), "Unexpected " + describe(peek())
+                + " — each statement must be on its own line");
+    }
+
+    private CalcException error(Token at, String message) {
+        return new CalcException(CalcException.Phase.PARSER, at.getLine(), message);
+    }
+
+    private String describe(Token t) {
+        switch (t.getType()) {
+            case NEWLINE: return "end of line";
+            case EOF:     return "end of file";
+            case STRING:  return "\"" + t.getValue() + "\"";
+            default:      return "'" + t.getValue() + "'";
+        }
     }
 
     // ─── Instruction parsers ──────────────────────────────────────────────────
@@ -75,11 +103,8 @@ public class Parser {
             case IF:         return parseIf();
             case LOOP:       return parseLoop();
             default:
-                throw new RuntimeException(
-                    "PARSER error on line " + t.getLine()
-                    + ": Unexpected token '" + t.getValue()
-                    + "' — expected a variable name, >>, ?, or @"
-                );
+                throw error(t, "Unexpected " + describe(t)
+                        + " — expected a variable name, >>, ?, or @");
         }
     }
 
@@ -98,37 +123,51 @@ public class Parser {
 
     /** ? &lt;condition&gt; =&gt; &lt;body&gt; */
     private Instruction parseIf() {
-        advance();
+        Token ifToken = advance();
         Expression condition = parseComparison();
         expect(TokenType.ARROW, "Expected '=>' after condition");
-        while (check(TokenType.NEWLINE)) advance();
-        return new IfInstruction(condition, parseBlock());
+        return new IfInstruction(condition, parseBody(ifToken), ifToken.getLine());
     }
 
     /** @ &lt;number&gt; =&gt; &lt;body&gt; */
     private Instruction parseLoop() {
-        advance();
+        Token loopToken = advance();
         Token countToken = expect(TokenType.NUMBER, "Expected a number after '@'");
-        int count = (int) Double.parseDouble(countToken.getValue());
+        double rawCount = Double.parseDouble(countToken.getValue());
+        if (rawCount != Math.floor(rawCount)) {
+            throw error(countToken, "Loop count must be a whole number, but got " + countToken.getValue());
+        }
         expect(TokenType.ARROW, "Expected '=>' after loop count");
-        while (check(TokenType.NEWLINE)) advance();
-        return new RepeatInstruction(count, parseBlock());
+        return new RepeatInstruction((int) rawCount, parseBody(loopToken));
     }
 
-    private List<Instruction> parseBlock() {
-        List<Instruction> body = new ArrayList<>();
-        while (!check(TokenType.EOF) && isStartOfInstruction()) {
-            body.add(parseInstruction());
-            while (check(TokenType.NEWLINE)) advance();
+    /** Body after '=>' — a one-line statement, or a multi-line block closed by 'end'. */
+    private List<Instruction> parseBody(Token opener) {
+        if (check(TokenType.NEWLINE)) {
+            return parseBlock(opener);
         }
+        if (check(TokenType.EOF)) {
+            throw error(peek(), "Expected a statement after '=>'");
+        }
+        List<Instruction> body = new ArrayList<>();
+        body.add(parseInstruction());
         return body;
     }
 
-    private boolean isStartOfInstruction() {
-        switch (peek().getType()) {
-            case IDENTIFIER: case PRINT: case IF: case LOOP: return true;
-            default: return false;
+    private List<Instruction> parseBlock(Token opener) {
+        List<Instruction> body = new ArrayList<>();
+        skipNewlines();
+        while (!check(TokenType.END)) {
+            if (check(TokenType.EOF)) {
+                throw error(opener, "Missing 'end' for the '" + opener.getValue()
+                        + "' block started on line " + opener.getLine());
+            }
+            body.add(parseInstruction());
+            expectEndOfStatement();
+            skipNewlines();
         }
+        advance(); // consume 'end'
+        return body;
     }
 
     // ─── Expression parsers (precedence chain) ────────────────────────────────
@@ -136,8 +175,8 @@ public class Parser {
     private Expression parseComparison() {
         Expression left = parseExpression();
         if (check(TokenType.GREATER) || check(TokenType.LESS) || check(TokenType.EQUAL_EQUAL)) {
-            String op = advance().getValue();
-            return new BinaryOpNode(left, op, parseExpression());
+            Token op = advance();
+            return new BinaryOpNode(left, op.getValue(), parseExpression(), op.getLine());
         }
         return left;
     }
@@ -146,8 +185,8 @@ public class Parser {
     private Expression parseExpression() {
         Expression left = parseTerm();
         while (check(TokenType.PLUS) || check(TokenType.MINUS)) {
-            String op = advance().getValue();
-            left = new BinaryOpNode(left, op, parseTerm());
+            Token op = advance();
+            left = new BinaryOpNode(left, op.getValue(), parseTerm(), op.getLine());
         }
         return left;
     }
@@ -156,8 +195,8 @@ public class Parser {
     private Expression parseTerm() {
         Expression left = parsePrimary();
         while (check(TokenType.STAR) || check(TokenType.SLASH)) {
-            String op = advance().getValue();
-            left = new BinaryOpNode(left, op, parsePrimary());
+            Token op = advance();
+            left = new BinaryOpNode(left, op.getValue(), parsePrimary(), op.getLine());
         }
         return left;
     }
@@ -174,13 +213,10 @@ public class Parser {
                 return new StringNode(t.getValue());
             case IDENTIFIER:
                 advance();
-                return new VariableNode(t.getValue());
+                return new VariableNode(t.getValue(), t.getLine());
             default:
-                throw new RuntimeException(
-                    "PARSER error on line " + t.getLine()
-                    + ": Expected a value (number, string, or variable name)"
-                    + " but got '" + t.getValue() + "' (" + t.getType() + ")"
-                );
+                throw error(t, "Expected a value (number, string, or variable name), but got "
+                        + describe(t));
         }
     }
 }

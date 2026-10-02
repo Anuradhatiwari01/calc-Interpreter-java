@@ -2,25 +2,31 @@ package instruction;
 
 import environment.Environment;
 import ast.Expression;
+import tokenizer.CalcException;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 public final class IfInstruction implements Instruction {
 
     private final Expression condition;
     private final List<Instruction> body;
+    private final int line;
 
-    public IfInstruction(Expression condition, List<Instruction> body){
+    public IfInstruction(Expression condition, List<Instruction> body, int line){
         this.condition = condition;
         this.body = Collections.unmodifiableList(body);
+        this.line = line;
     }
 
     @Override
     public void execute(Environment env){
         Object result = condition.evaluate(env);
-        if (Boolean.TRUE.equals(result)) {
+        if (!(result instanceof Boolean)) {
+            throw new CalcException(CalcException.Phase.EVALUATOR, line,
+                    "Condition after '?' must be a comparison (>, <, ==), but got " + result);
+        }
+        if ((Boolean) result) {
             for (Instruction instruction : body) {
                 instruction.execute(env);
             }

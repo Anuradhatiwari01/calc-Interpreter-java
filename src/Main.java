@@ -1,6 +1,7 @@
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import tokenizer.CalcException;
 
 // Entry point — reads .calc file and runs it through the interpreter
 public class Main {
@@ -23,8 +24,8 @@ public class Main {
 
         try {
             new Interpreter().run(sourceCode);
-        } catch (RuntimeException e) {
-            System.err.println(e.getMessage());
+        } catch (CalcException e) {
+            System.err.println(e); // [PHASE ERROR] Line N: message
             System.exit(1);
         }
     }
