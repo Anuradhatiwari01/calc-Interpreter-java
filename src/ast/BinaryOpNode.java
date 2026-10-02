@@ -48,6 +48,11 @@ public class BinaryOpNode implements Expression {
     }
 
     @Override
+    public TreeNode toTree() {
+        return new TreeNode("BinaryOp " + operator, left.toTree(), right.toTree());
+    }
+
+    @Override
     public String toString() {
         return "BinaryOpNode(" + left + " " + operator + " " + right + ")";
     }

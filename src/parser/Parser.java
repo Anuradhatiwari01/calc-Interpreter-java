@@ -138,7 +138,7 @@ public class Parser {
             throw error(countToken, "Loop count must be a whole number, but got " + countToken.getValue());
         }
         expect(TokenType.ARROW, "Expected '=>' after loop count");
-        return new RepeatInstruction((int) rawCount, parseBody(loopToken));
+        return new RepeatInstruction((int) rawCount, parseBody(loopToken), loopToken.getLine());
     }
 
     /** Body after '=>' — a one-line statement, or a multi-line block closed by 'end'. */

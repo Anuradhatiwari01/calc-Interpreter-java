@@ -2,6 +2,8 @@ package instruction;
 
 import environment.Environment;
 import ast.Expression;
+import ast.TreeNode;
+import ast.Values;
 import tokenizer.CalcException;
 
 import java.util.Collections;
@@ -24,13 +26,20 @@ public final class IfInstruction implements Instruction {
         Object result = condition.evaluate(env);
         if (!(result instanceof Boolean)) {
             throw new CalcException(CalcException.Phase.EVALUATOR, line,
-                    "Condition after '?' must be a comparison (>, <, ==), but got " + result);
+                    "Condition after '?' must be a comparison (>, <, ==), but got " + Values.format(result));
         }
         if ((Boolean) result) {
             for (Instruction instruction : body) {
                 instruction.execute(env);
             }
         }
+    }
+
+    @Override
+    public TreeNode toTree() {
+        return new TreeNode("If",
+                new TreeNode("Condition", condition.toTree()),
+                new TreeNode("Then", Instruction.toTrees(body)));
     }
 
     @Override

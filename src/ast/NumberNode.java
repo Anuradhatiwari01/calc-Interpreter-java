@@ -13,6 +13,10 @@ public class NumberNode implements Expression {
         return value;
     }
     @Override
+    public TreeNode toTree() {
+        return new TreeNode("Number " + Values.format(value));
+    }
+    @Override
     public String toString() {
         return "NumberNode(" + value + ")";
     }

@@ -20,6 +20,10 @@ public class VariableNode implements Expression {
         );
     }
     @Override
+    public TreeNode toTree() {
+        return new TreeNode("Variable " + name);
+    }
+    @Override
     public String toString() {
         return "VariableNode(" + name + ")";
     }

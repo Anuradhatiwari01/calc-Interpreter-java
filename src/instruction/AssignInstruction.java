@@ -2,6 +2,7 @@ package instruction;
 
 import environment.Environment;
 import ast.Expression;
+import ast.TreeNode;
 
 public final class AssignInstruction implements Instruction {
     private final String name;
@@ -16,6 +17,11 @@ public final class AssignInstruction implements Instruction {
     public void execute(Environment env){
         Object value = expression.evaluate(env);
         env.set(name, value);
+    }
+
+    @Override
+    public TreeNode toTree() {
+        return new TreeNode("Assign " + name, expression.toTree());
     }
 
     @Override

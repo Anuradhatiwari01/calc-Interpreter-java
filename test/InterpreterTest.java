@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import server.RunService;
 import tokenizer.CalcException;
 
 /**
@@ -99,9 +100,30 @@ public class InterpreterTest {
         error("string in arithmetic", ">> \"a\" + 1",
                 "[EVALUATOR ERROR] Line 1: Operator '+' needs numbers, but got \"a\"");
         error("non-comparison condition", "x := 5\n? x =>\n>> x\nend",
-                "[EVALUATOR ERROR] Line 2: Condition after '?' must be a comparison (>, <, ==), but got 5.0");
+                "[EVALUATOR ERROR] Line 2: Condition after '?' must be a comparison (>, <, ==), but got 5");
         error("error inside loop body", "@ 2 =>\n>> 1\n>> missing\nend",
                 "[EVALUATOR ERROR] Line 3: Variable 'missing' is not defined");
+
+        // ─── Web API (RunService JSON) ───────────────────────────────────────
+        contains("api: output captured",      RunService.run(">> 1 + 1\n>> \"hi\""),
+                "\"output\":[\"2\",\"hi\"],\"truncated\":false,\"error\":null");
+        contains("api: json escaping",        RunService.run(">> \"a<b\tc\""),
+                "\"output\":[\"a\\u003cb\\tc\"]");
+        contains("api: syntax tree",          RunService.run("x := 1 + 2"),
+                "{\"label\":\"Program\",\"children\":[{\"label\":\"Assign x\",\"children\":"
+                + "[{\"label\":\"BinaryOp +\",\"children\":[{\"label\":\"Number 1\"");
+        contains("api: tokens listed",        RunService.run("x := 5"),
+                "{\"type\":\"IDENTIFIER\",\"value\":\"x\",\"line\":1},{\"type\":\"ASSIGN\"");
+        contains("api: parse error keeps tokens", RunService.run("@ 2 =>\n>> 1"),
+                "\"phase\":\"PARSER\",\"line\":1");
+        contains("api: parse error has no tree",  RunService.run("@ 2 =>\n>> 1"),
+                "\"tree\":null");
+        contains("api: output before error kept", RunService.run(">> 1\n>> nope"),
+                "\"output\":[\"1\"]");
+        contains("api: loop limit",           RunService.run("@ 2000 =>\n@ 1000 => x := 1\nend"),
+                "Stopped after 1000000 loop iterations");
+        contains("api: output truncated",     RunService.run("@ 6000 => >> 1"),
+                "\"truncated\":true");
 
         System.out.println();
         System.out.println(passed + " passed, " + failed + " failed");
@@ -135,6 +157,14 @@ public class InterpreterTest {
 
     private static void error(String name, String source, String expected) {
         check(name, run(source), expected);
+    }
+
+    private static void contains(String name, String actual, String expectedPart) {
+        if (actual.contains(expectedPart)) {
+            check(name, expectedPart, expectedPart);
+        } else {
+            check(name, actual, "…" + expectedPart + "…");
+        }
     }
 
     private static void check(String name, String actual, String expected) {

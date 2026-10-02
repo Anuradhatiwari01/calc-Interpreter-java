@@ -158,7 +158,45 @@ java -cp out InterpreterTest
 ```
 In PowerShell, use `(Get-ChildItem -Recurse src,test -Filter *.java).FullName` for the file list.
 
-The test runner doesn't need any libraries. It checks every sample program, the block and one-line forms, and the exact text of each error message.
+The test runner doesn't need any libraries. It checks every sample program, the block and one-line forms, the exact text of each error message, and the web API's JSON.
+
+---
+
+## Interactive Learning UI
+
+CALC includes a browser-based learning site inspired by [Programiz](https://www.programiz.com/). Every program on the site runs on this Java interpreter. The site never reimplements CALC in JavaScript.
+
+**Start it:**
+```powershell
+.\run-ui.cmd          # Windows (or double-click run-ui.cmd)
+```
+```bash
+./run-ui.sh           # macOS / Linux / Git Bash
+```
+Then open **http://localhost:8080**. To use a different port, pass it as an argument: `.\run-ui.cmd 8081`.
+
+**Or run the two steps yourself:**
+```bash
+javac -d out $(find src -name "*.java")
+java -cp out server.WebServer 8080
+```
+
+**What's inside:**
+- **Tutorial**: 10 short lessons, from printing to nested loops, errors and how the interpreter works. Every example can be edited and run on the page. Each lesson ends with a challenge, and the **Check answer** button compares your output line by line. Progress is saved in your browser.
+- **Playground**: a full editor with syntax highlighting, line numbers, auto-indent, and a Run button (or `Ctrl + Enter`). You can load the sample programs from a dropdown. It has three result tabs:
+  - **Output**: what the program printed, or the error. The line that caused an error is highlighted in the editor.
+  - **Tokens**: what the Tokenizer produced, grouped by line.
+  - **Syntax tree**: what the Parser built, drawn as a tree.
+
+  A stage indicator shows how far your program got: Tokenizer ✓ → Parser ✓ → Evaluator ✗.
+- **Reference**: syntax, operator precedence, every error message and how to fix it, and keyboard shortcuts.
+- Light and dark themes, and a layout that works on phones.
+
+**How it works:** `server.WebServer` uses only the JDK's built-in `com.sun.net.httpserver`, so it needs no dependencies.
+- It serves the static files in `ui/`.
+- `POST /api/run` sends a program through the same Tokenizer → Parser → Evaluator pipeline as the CLI. It returns JSON with the output, any error, the tokens and the syntax tree.
+- The server only listens on `127.0.0.1`, because it runs any code it is sent.
+- Each run is limited to 1,000,000 loop iterations, 5,000 output lines and 64 KB of source.
 
 ---
 
@@ -171,13 +209,16 @@ calc-Interpreter-java/
 │   ├── Interpreter.java       # Pipeline: tokenize → parse → execute
 │   ├── tokenizer/             # Token, TokenType, Tokenizer, CalcException
 │   ├── parser/                # Parser (recursive descent)
-│   ├── ast/                   # Expression nodes: Number, String, Variable, BinaryOp
+│   ├── ast/                   # Expression nodes + TreeNode (tree view) + Values (number formatting)
 │   ├── instruction/           # Statements: Assign, Print, If, Repeat
-│   └── environment/           # Environment: variable storage
+│   ├── environment/           # Environment: variables, output sink, loop limit
+│   └── server/                # WebServer, RunService (JSON API), Json
+├── ui/                        # Learning site: index.html, styles.css, editor.js, lessons.js, app.js
 ├── test/
 │   └── InterpreterTest.java   # Test runner (no libraries needed)
 ├── samples/
 │   └── program1.calc … program5.calc
+├── run-ui.cmd / run-ui.sh     # Compile and start the UI
 └── README.md
 ```
 

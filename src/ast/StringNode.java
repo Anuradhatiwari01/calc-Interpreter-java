@@ -14,6 +14,10 @@ public class StringNode implements Expression {
         return value;
     }
     @Override
+    public TreeNode toTree() {
+        return new TreeNode("String \"" + value + "\"");
+    }
+    @Override
     public String toString() {
         return "StringNode(\"" + value + "\")";
     }
