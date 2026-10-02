@@ -43,7 +43,7 @@ calc-Interpreter-java/
 │   ├── environment/
 │   │   └── Environment.java      # Variables (one global scope), the output sink, and an optional loop limit
 │   └── server/
-│       ├── WebServer.java        # JDK built-in HTTP server: serves ui/ and POST /api/run (127.0.0.1 only)
+│       ├── WebServer.java        # JDK built-in HTTP server: serves ui/ and POST /api/run (PORT and BIND_ADDRESS env vars)
 │       ├── RunService.java       # Runs a program and returns output, error, tokens and tree as JSON
 │       └── Json.java             # JSON string escaping
 ├── test/
@@ -56,6 +56,7 @@ calc-Interpreter-java/
 ├── samples/
 │   └── program1.calc … program5.calc
 ├── run-ui.cmd / run-ui.sh        # Compile and start the UI
+├── Dockerfile, .dockerignore     # Two-stage image: compile + run tests, then a slim JRE runtime (non-root)
 ├── README.md
 └── .gitignore                    # ignores .idea/, .github/, *.class, out/
 ```
@@ -116,7 +117,7 @@ A Programiz-style site. Every run goes to the real Java interpreter through `POS
 - **Tutorial**: 10 lessons with editable, runnable examples. Each lesson ends with a challenge, and the Check answer button compares output line by line. It also has a hint, a solution, and progress saved in `localStorage`.
 - **Playground**: an editor with highlighting, line numbers, auto-indent after `=>`, Tab/Shift+Tab, Ctrl+/ to comment, and Ctrl+Enter to run. You can load examples from a dropdown. There are three tabs: Output, Tokens and Syntax tree. A Tokenizer → Parser → Evaluator stage indicator shows how far the program got, and the error line is highlighted.
 - **Reference**: syntax, precedence, error messages with fixes, shortcuts and limits.
-- **Safety limits per run**: 1,000,000 loop iterations, 5,000 output lines, and 64 KB of source. The server only listens on `127.0.0.1`.
+- **Safety limits per run**: 1,000,000 loop iterations, 5,000 output lines, and 64 KB of source. By default the server listens only on `127.0.0.1`. The Docker image sets `BIND_ADDRESS=0.0.0.0`.
 - **Interpreter changes made for the UI:**
   - `Environment` takes an output sink and a loop limit. The CLI keeps `System.out` and no limit.
   - Every node has a `toTree()`.
@@ -126,6 +127,18 @@ A Programiz-style site. Every run goes to the real Java interpreter through `POS
   - No starter program already passes its challenge.
   - Headless Chrome checks at desktop and phone widths, in light and dark themes, found no JS errors and no horizontal overflow.
   - Font ligatures are turned off, so `=>` and `>>` look exactly as you type them.
+
+## 6b. Deployment (Docker + Render)
+
+- **Platform:** Render free web service, deploying the `Dockerfile` from the `ui-development` branch. GitHub Pages, Netlify and Vercel won't work: they only serve static files, and this site needs a Java process.
+- **Container:** the build stage runs the tests (`50 passed`). The runtime image is Java 21 JRE, runs as user `calc`, and uses `-XX:MaxRAMPercentage=60`.
+- **Checked locally on 2026-10-02 with free-tier limits (`--memory=512m --cpus=0.1`):**
+  - Memory use is about 23 MB.
+  - Every page and the API respond.
+  - A runaway program hits the loop limit in about 0.3 s.
+  - Headless Chrome found no JS errors.
+- **Free-tier behaviour:** the instance sleeps after 15 minutes idle, and the next visit takes 30–60 s to wake it.
+- `main` was deliberately not merged. Render deploys `ui-development` directly.
 
 ## 7. Remaining limitations (not bugs, just not built yet)
 
@@ -150,4 +163,5 @@ What was done:
 
 - **Core interpreter:** complete. All 50 tests pass on Java 21, compiled with `--release 11`.
 - **Git remote:** fixed. `origin` is the only remote.
-- **Interactive UI:** first version complete on `ui-development` (not committed yet).
+- **Interactive UI:** first version committed and pushed on `ui-development` (`94203e4`).
+- **Deployment:** the Docker setup is ready and tested locally. Next: create the Render web service (README → Deployment).

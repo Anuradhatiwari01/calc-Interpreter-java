@@ -24,6 +24,10 @@ import java.util.concurrent.Executors;
  *
  *   GET  /          → static files from the ui/ folder
  *   POST /api/run   → body is CALC source, response is RunService JSON
+ *
+ * Environment variables (used when deployed, e.g. on Render):
+ *   PORT          port to listen on when no [port] argument is given (default 8080)
+ *   BIND_ADDRESS  address to listen on (default 127.0.0.1 — this machine only)
  */
 public class WebServer {
 
@@ -41,15 +45,15 @@ public class WebServer {
     }
 
     public static void main(String[] args) throws IOException {
+        String portText = args.length > 0 ? args[0] : System.getenv().getOrDefault("PORT", "8080");
         int port = 8080;
-        if (args.length > 0) {
-            try {
-                port = Integer.parseInt(args[0]);
-            } catch (NumberFormatException e) {
-                System.err.println("Port must be a number, but got '" + args[0] + "'");
-                System.exit(1);
-            }
+        try {
+            port = Integer.parseInt(portText.trim());
+        } catch (NumberFormatException e) {
+            System.err.println("Port must be a number, but got '" + portText + "'");
+            System.exit(1);
         }
+        String bindAddress = System.getenv().getOrDefault("BIND_ADDRESS", "127.0.0.1");
         Path root = Paths.get(args.length > 1 ? args[1] : "ui").toAbsolutePath().normalize();
 
         if (!Files.isDirectory(root)) {
@@ -58,10 +62,11 @@ public class WebServer {
             System.exit(1);
         }
 
-        // Bound to localhost only — the server runs code sent to it, so it should not be reachable from the network
+        // Localhost only by default. CALC programs can't touch files or the network, and every run is
+        // capped (loop iterations, output, source size), so listening publicly is safe when deployed.
         HttpServer server;
         try {
-            server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
+            server = HttpServer.create(new InetSocketAddress(bindAddress, port), 0);
         } catch (BindException e) {
             System.err.println("Port " + port + " is already in use. Try another one, e.g. 8081.");
             System.exit(1);
@@ -72,8 +77,12 @@ public class WebServer {
         server.setExecutor(Executors.newFixedThreadPool(4));
         server.start();
 
-        System.out.println("CALC UI running at http://localhost:" + port);
-        System.out.println("Press Ctrl+C to stop.");
+        if (bindAddress.equals("127.0.0.1") || bindAddress.equals("localhost")) {
+            System.out.println("CALC UI running at http://localhost:" + port);
+            System.out.println("Press Ctrl+C to stop.");
+        } else {
+            System.out.println("CALC UI listening on " + bindAddress + ":" + port);
+        }
     }
 
     private static void handleRun(HttpExchange exchange) throws IOException {

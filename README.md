@@ -195,8 +195,35 @@ java -cp out server.WebServer 8080
 **How it works:** `server.WebServer` uses only the JDK's built-in `com.sun.net.httpserver`, so it needs no dependencies.
 - It serves the static files in `ui/`.
 - `POST /api/run` sends a program through the same Tokenizer → Parser → Evaluator pipeline as the CLI. It returns JSON with the output, any error, the tokens and the syntax tree.
-- The server only listens on `127.0.0.1`, because it runs any code it is sent.
-- Each run is limited to 1,000,000 loop iterations, 5,000 output lines and 64 KB of source.
+- By default the server only listens on `127.0.0.1`. Set `BIND_ADDRESS=0.0.0.0` to accept outside connections when deploying.
+- Each run is limited to 1,000,000 loop iterations, 5,000 output lines and 64 KB of source. CALC programs can't access files or the network.
+
+---
+
+## Deployment (Docker / Render)
+
+The `Dockerfile` builds the project in two stages:
+1. **Build stage:** compiles everything and runs the full test suite. A failing test stops the build.
+2. **Runtime stage:** a small Java 21 runtime image containing only the compiled classes and `ui/`. It runs as an unprivileged user.
+
+**Run the container locally:**
+```bash
+docker build -t calc-learn .
+docker run --rm -p 8080:10000 calc-learn
+```
+Then open http://localhost:8080.
+
+**Deploy on [Render](https://render.com)** (free plan):
+1. Choose **New → Web Service** and connect this GitHub repository.
+2. Set **Runtime** to **Docker**, choose your branch, and pick the **Free** instance type.
+3. Under **Advanced**, set the health check path to `/`.
+
+No environment variables are needed. Render sets `PORT`, and the image sets `BIND_ADDRESS=0.0.0.0`. A free instance sleeps after 15 minutes without visitors, so the first visit after that takes about 30–60 seconds while it wakes up.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PORT` | `8080` (the image sets `10000`) | Port to listen on. A command-line argument takes priority. |
+| `BIND_ADDRESS` | `127.0.0.1` (the image sets `0.0.0.0`) | Network address to listen on |
 
 ---
 
@@ -219,6 +246,7 @@ calc-Interpreter-java/
 ├── samples/
 │   └── program1.calc … program5.calc
 ├── run-ui.cmd / run-ui.sh     # Compile and start the UI
+├── Dockerfile                 # Two-stage build: test, then a small runtime image
 └── README.md
 ```
 
